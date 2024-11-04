@@ -10,28 +10,26 @@ func main() {
 	clownChannel := make(chan int, 3)
 	clowns := 5
 
-	var wgClowns sync.WaitGroup
-	var wgDriver sync.WaitGroup
+	var wg sync.WaitGroup
+	driverCh := make(chan struct{})
 
 	// sender/driver logic
 	go func() {
-		wgDriver.Add(1)
-		defer wgDriver.Done()
 		for clownID := range clownChannel {
 			balloon := fmt.Sprintf("Balloon %d", clownID)
 			fmt.Printf("Driver: Drove the car with %s inside\n", balloon)
 			time.Sleep(time.Millisecond * 500)
 			fmt.Printf("Driver: Clown finished with %s, the car is ready for more!\n", balloon)
 		}
-
 		fmt.Println("Driver: I'm done for the day!")
+		close(driverCh)
 	}()
 
 	// receiver/clowns logic
 	for clown := 1; clown <= clowns; clown++ {
-		wgClowns.Add(1)
+		wg.Add(1)
 		go func(clownID int) {
-			defer wgClowns.Done()
+			defer wg.Done()
 			balloon := fmt.Sprintf("Balloon %d", clownID)
 			fmt.Printf("Clown %d: Hopped into the car with %s\n", clownID, balloon)
 			select {
@@ -43,8 +41,8 @@ func main() {
 		}(clown)
 	}
 
-	wgClowns.Wait()
+	wg.Wait()
 	close(clownChannel)
-	wgDriver.Wait()
+	<-driverCh
 	fmt.Println("Circus car ride is over!")
 }
